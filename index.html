@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Titik Hening - Business Intelligence POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Library untuk download PNG -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Library untuk download EXCEL -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inconsolata:wght@400;700&display=swap');
+        
+        :root {
+            --primary: #f59e0b;
+            --secondary: #0f172a;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 20px; }
+
+        .active-nav {
+            background-color: #f59e0b !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .tab-content { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Styling Struk Digital */
+        #receipt-content {
+            font-family: 'Inconsolata', monospace;
+            width: 300px;
+            background: white;
+            color: #000;
+            padding: 20px;
+            line-height: 1.2;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-wrapper, #receipt-wrapper * { visibility: visible; }
+            #receipt-wrapper { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased overflow-x-hidden">
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 glass border-t border-slate-200 z-50 px-4 py-3 flex justify-around items-center pb-safe">
+        <button onclick="switchTab('dashboard')" id="m-nav-dashboard" class="flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl transition-all">
+            <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+            <span class="text-[10px] font-medium">Home</span>
+        </button>
+        <button onclick="switchTab('pos')" id="m-nav-pos" class="flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl transition-all active-nav">
+            <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+            <span class="text-[10px] font-medium">Cashier</span>
+        </button>
+        <button onclick="switchTab('menu')" id="m-nav-menu" class="flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl transition-all">
+            <i data-lucide="settings-2" class="w-6 h-6"></i>
+            <span class="text-[10px] font-medium">Product</span>
+        </button>
+        <button onclick="switchTab('history')" id="m-nav-history" class="flex flex-col items-center gap-1 text-slate-400 p-2 rounded-xl transition-all">
+            <i data-lucide="receipt" class="w-6 h-6"></i>
+            <span class="text-[10px] font-medium">Report</span>
+        </button>
+    </nav>
+
+    <div class="flex min-h-screen">
+        <!-- Desktop Sidebar -->
+        <aside class="hidden lg:flex flex-col w-72 bg-slate-900 text-slate-300 p-8 fixed h-full z-40">
+            <div class="flex items-center gap-4 mb-12">
+                <div class="p-2.5 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-500/20">
+                    <i data-lucide="coffee" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-xl tracking-tight text-white leading-none">Titik Hening</h1>
+                    <span class="text-xs text-slate-500">Integrated Management</span>
+                </div>
+            </div>
+            
+            <nav class="flex flex-col gap-2">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex items-center gap-4 px-5 py-4 rounded-2xl transition-all hover:bg-slate-800">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span class="font-semibold">Dashboard</span>
+                </button>
+                <button onclick="switchTab('pos')" id="nav-pos" class="flex items-center gap-4 px-5 py-4 rounded-2xl transition-all active-nav">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                    <span class="font-semibold">Head Cashier</span>
+                </button>
+                <button onclick="switchTab('menu')" id="nav-menu" class="flex items-center gap-4 px-5 py-4 rounded-2xl transition-all hover:bg-slate-800">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                    <span class="font-semibold">Product</span>
+                </button>
+                <button onclick="switchTab('history')" id="nav-history" class="flex items-center gap-4 px-5 py-4 rounded-2xl transition-all hover:bg-slate-800">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                    <span class="font-semibold">Profit/Loss</span>
+                </button>
+            </nav>
+
+            <div class="mt-auto p-5 bg-slate-800/50 border border-slate-700/50 rounded-3xl">
+                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">System Status</p>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-xs font-medium text-white">Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 lg:ml-72 p-4 lg:p-10 mb-24 lg:mb-0">
+            
+            <!-- Header -->
+            <header class="flex justify-between items-center mb-8 bg-white lg:bg-transparent p-4 lg:p-0 -m-4 lg:m-0 shadow-sm lg:shadow-none sticky top-0 lg:static z-30">
+                <div class="flex items-center gap-3 lg:hidden">
+                    <div class="p-2 bg-amber-500 rounded-xl text-white"><i data-lucide="coffee" class="w-5 h-5"></i></div>
+                    <h1 class="font-bold text-lg text-slate-900">Titik Hening</h1>
+                </div>
+                <div class="hidden lg:block">
+                    <h2 id="current-tab-title" class="text-3xl font-black text-slate-900 tracking-tight">Cashier</h2>
+                    <p class="text-slate-500 text-sm">Have a good day at work, Admin!</p>
+                </div>
+                
+                <!-- Tanggal & Jam Real-time di Pojok Kanan Atas -->
+                <div class="flex flex-col items-end gap-1">
+                    <div class="bg-white border border-slate-200 px-4 py-1.5 rounded-xl flex items-center gap-2 shadow-sm">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i>
+                        <span id="header-date" class="text-xs font-bold text-slate-600">-- --- ----</span>
+                    </div>
+                    <div class="flex items-center gap-2 px-4 py-1 bg-slate-900 text-amber-400 rounded-lg shadow-lg">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                        <span id="header-time" class="text-xs font-black tracking-widest">00:00:00</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- TAB: DASHBOARD -->
+            <section id="tab-dashboard" class="tab-content hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Revenue</p>
+                        <p class="text-2xl font-black text-slate-900" id="stat-revenue">Rp 0</p>
+                        <div class="mt-2 text-xs font-bold text-blue-500 bg-blue-50 inline-block px-2 py-1 rounded-lg">Dirty</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Net Profit</p>
+                        <p class="text-2xl font-black text-emerald-600" id="stat-profit">Rp 0</p>
+                        <div class="mt-2 text-xs font-bold text-emerald-600 bg-emerald-50 inline-block px-2 py-1 rounded-lg">Profit Estimate</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total Orders</p>
+                        <p class="text-2xl font-black text-slate-900" id="stat-orders">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Average Margin</p>
+                        <p class="text-2xl font-black text-amber-600" id="stat-margin">0%</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                        <h3 class="font-bold text-xl mb-6">Best-Selling Products</h3>
+                        <div class="space-y-4" id="top-products">
+                            <p class="text-slate-400 text-sm italic">No sales data yet.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                        <h3 class="font-bold text-xl mb-6">Top Margin Analysis</h3>
+                        <div class="space-y-4" id="margin-analysis">
+                            <p class="text-slate-400 text-sm italic">Waiting for product data.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: POS -->
+            <section id="tab-pos" class="tab-content">
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <div class="flex-1">
+                        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                            <div class="relative flex-1">
+                                <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" oninput="searchMenu(this.value)" placeholder="Search..." class="w-full pl-11 pr-4 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition-all shadow-sm">
+                            </div>
+                            <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                <button onclick="filterCategory('All')" class="category-btn active bg-slate-900 text-white px-6 py-4 rounded-2xl text-sm font-bold whitespace-nowrap">All</button>
+                                <button onclick="filterCategory('Coffee')" class="category-btn bg-white border border-slate-200 text-slate-600 px-6 py-4 rounded-2xl text-sm font-bold whitespace-nowrap">Coffee</button>
+                                <button onclick="filterCategory('Non-Coffee')" class="category-btn bg-white border border-slate-200 text-slate-600 px-6 py-4 rounded-2xl text-sm font-bold whitespace-nowrap">Non-Coffee</button>
+                                <button onclick="filterCategory('Snack')" class="category-btn bg-white border border-slate-200 text-slate-600 px-6 py-4 rounded-2xl text-sm font-bold whitespace-nowrap">Snack</button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4" id="pos-menu-grid"></div>
+                    </div>
+
+                    <!-- Side Cart -->
+                    <div class="w-full lg:w-[400px]">
+                        <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[600px] lg:h-[calc(100vh-10rem)] lg:sticky lg:top-8">
+                            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                <h3 class="font-bold text-lg">Order Details</h3>
+                                <button onclick="clearCart()" class="text-xs font-bold text-red-500 hover:text-red-700">Delete All</button>
+                            </div>
+                            
+                            <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3" id="cart-items">
+                                <div class="flex flex-col items-center justify-center h-full text-slate-300">
+                                    <i data-lucide="shopping-basket" class="w-12 h-12 mb-3"></i>
+                                    <p class="text-sm font-medium">Empty Cart</p>
+                                </div>
+                            </div>
+
+                            <div class="p-6 bg-slate-900 text-white space-y-4">
+                                <div class="flex justify-between text-sm text-slate-400">
+                                    <span>Subtotal</span>
+                                    <span id="cart-subtotal">Rp 0</span>
+                                </div>
+                                <div class="flex justify-between font-black text-xl pt-2 border-t border-slate-800">
+                                    <span>Total</span>
+                                    <span id="cart-total" class="text-amber-400">Rp 0</span>
+                                </div>
+                                <button onclick="checkout()" class="w-full bg-amber-500 text-slate-900 py-4 rounded-2xl font-black text-lg shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                    PAYMENT PROCESS
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MANAJEMEN MENU -->
+            <section id="tab-menu" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-xl font-bold">Product List & Price Control</h3>
+                    <button onclick="openMenuModal()" class="bg-amber-500 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-amber-500/20">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add Menu
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                                <th class="px-8 py-5">Menu Name</th>
+                                <th class="px-8 py-5">Category</th>
+                                <th class="px-8 py-5 text-right">Price (Reg / 1L)</th>
+                                <th class="px-8 py-5 text-right">HPP (Reg / 1L)</th>
+                                <th class="px-8 py-5 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="menu-table-body" class="divide-y divide-slate-50 font-medium text-sm"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB: HISTORY (Updated with Filters and Excel) -->
+            <section id="tab-history" class="tab-content hidden">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">From Date</label>
+                            <input type="date" id="report-start" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Until Date</label>
+                            <input type="date" id="report-end" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 lg:mt-5">
+                        <button onclick="applyReportFilter()" class="flex-1 lg:flex-none bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                            <i data-lucide="filter" class="w-4 h-4 text-amber-500"></i> FILTER
+                        </button>
+                        <button onclick="exportToExcel()" class="flex-1 lg:flex-none bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                            <i data-lucide="download-cloud" class="w-4 h-4"></i> EXCEL
+                        </button>
+                    </div>
+                </div>
+
+                <div id="report-summary-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 hidden">
+                    <!-- Dynamic summary cards -->
+                </div>
+
+                <div id="history-list" class="space-y-4"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL: ADD/EDIT MENU -->
+    <div id="modal-menu" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[100] p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl scale-95 transition-all duration-300 overflow-hidden" id="modal-content">
+            <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div>
+                    <h3 class="font-black text-2xl" id="modal-title">Add New Menu</h3>
+                    <p class="text-xs text-slate-500 font-medium">Complete the product details and cost price</p>
+                </div>
+                <button onclick="toggleModal('modal-menu', false)" class="text-slate-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <form id="form-menu" class="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Basic Info -->
+                    <div class="space-y-5">
+                        <div class="space-y-1">
+                            <label class="text-xs font-black text-slate-500 ml-1 uppercase">Menu Name</label>
+                            <input type="text" id="menu-name" required placeholder="Contoh: Kopi Susu Aren" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-black text-slate-500 ml-1 uppercase">Category</label>
+                            <select id="menu-category" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500">
+                                <option value="Coffee">Coffee</option>
+                                <option value="Non-Coffee">Non-Coffee</option>
+                                <option value="Snack">Snack</option>
+                            </select>
+                        </div>
+                        <div class="p-5 bg-amber-50 rounded-[1.5rem] border border-amber-100">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" id="menu-has-liter" onchange="toggleLiterInputs()" class="w-5 h-5 accent-amber-500">
+                                <label for="menu-has-liter" class="text-sm font-bold text-amber-900 cursor-pointer">Activate the 1-liter variant</label>
+                            </div>
+                            <p class="text-[10px] text-amber-600/80 mt-1 leading-relaxed">Only recommended for beverage categories. Provide large bottle size options at the cash register.</p>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Info -->
+                    <div class="space-y-5">
+                        <div class="p-5 bg-slate-50 rounded-[1.5rem] border border-slate-200 space-y-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-2">Regular Variant (Glass)</p>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 ml-1">SELLING PRICE</label>
+                                <input type="number" id="menu-price" required placeholder="0" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 ml-1">HPP (MODAL)</label>
+                                <input type="number" id="menu-hpp" required placeholder="0" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500">
+                            </div>
+                        </div>
+
+                        <div id="liter-pricing-container" class="p-5 bg-indigo-50/50 rounded-[1.5rem] border border-indigo-100 space-y-4 hidden animate-fadeIn">
+                            <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-100 pb-2">1 Liter Variant (Bottle)</p>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-indigo-500 ml-1">SELLING PRICE 1L</label>
+                                <input type="number" id="menu-price-liter" placeholder="0" class="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-indigo-500 ml-1">HPP (MODAL) 1L</label>
+                                <input type="number" id="menu-hpp-liter" placeholder="0" class="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-8 border-t border-slate-100">
+                    <button type="submit" id="btn-submit-menu" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-lg hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10">SAVE PRODUCT</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: STRUK PEMBAYARAN -->
+    <div id="receipt-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center z-[200] p-4">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-sm w-full flex flex-col items-center animate-fadeIn">
+            <div id="receipt-wrapper" class="bg-white border-2 border-slate-100 p-2 mb-6 shadow-inner rounded-xl">
+                <div id="receipt-content">
+                    <!-- Konten struk diisi via JavaScript -->
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 w-full no-print">
+                <button onclick="printReceipt()" class="bg-slate-900 text-white py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-slate-800">
+                    <i data-lucide="printer" class="w-4 h-4 text-amber-400"></i> PRINT
+                </button>
+                <button onclick="downloadReceipt()" class="bg-amber-500 text-slate-900 py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-amber-400">
+                    <i data-lucide="download" class="w-4 h-4"></i> Download
+                </button>
+                <button onclick="toggleModal('receipt-modal', false)" class="col-span-2 bg-slate-100 text-slate-500 py-3 rounded-xl font-bold text-xs uppercase tracking-widest mt-2 hover:bg-slate-200">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: TOAST -->
+    <div id="toast" class="fixed bottom-24 lg:bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all duration-500 z-[300] flex items-center gap-3">
+        <i data-lucide="check-circle" class="w-5 h-5 text-amber-400"></i>
+        <span class="font-bold text-sm">Successful</span>
+    </div>
+
+    <script>
+        // --- DATA STATE ---
+        let menuItems = [
+            { 
+                id: 1, name: 'Kopi Susu Hening', category: 'Coffee', icon: '☕', hasLiter: true,
+                price: 20000, hpp: 9000,
+                priceLiter: 75000, hppLiter: 30000
+            },
+            { 
+                id: 2, name: 'Americano', category: 'Coffee', icon: '🧊', hasLiter: true,
+                price: 18000, hpp: 6000,
+                priceLiter: 65000, hppLiter: 22000
+            },
+            { 
+                id: 3, name: 'Matcha Sakura', category: 'Non-Coffee', icon: '🍵', hasLiter: false,
+                price: 28000, hpp: 12000,
+                priceLiter: 0, hppLiter: 0
+            }
+        ];
+
+        let cart = [];
+        let salesHistory = [];
+        let filteredHistory = []; // Untuk kebutuhan filtering
+        let currentFilter = 'All';
+        let currentSearch = '';
+        let editingId = null;
+
+        // --- CORE FUNCTIONS ---
+        function init() {
+            lucide.createIcons();
+            
+            // Set Tanggal Awal
+            document.getElementById('header-date').textContent = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            
+            // Jalankan Jam Real-time
+            startClock();
+
+            // Set default dates for report
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('report-start').value = today;
+            document.getElementById('report-end').value = today;
+
+            renderPOSMenu();
+            renderMenuSettings();
+            updateStats();
+        }
+
+        // --- REAL-TIME CLOCK ---
+        function startClock() {
+            const timeElement = document.getElementById('header-time');
+            const dateElement = document.getElementById('header-date');
+            
+            function update() {
+                const now = new Date();
+                
+                // Update Tanggal (seandainya berganti hari saat app terbuka)
+                dateElement.textContent = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                
+                // Update Jam
+                const timeString = now.toLocaleTimeString('id-ID', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit',
+                    hour12: false 
+                }).replace(/\./g, ':'); // Pastikan pemisah titik di sistem id-ID jadi titik dua
+                
+                timeElement.textContent = timeString;
+            }
+            
+            update();
+            setInterval(update, 1000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            
+            document.querySelectorAll('aside button, nav button').forEach(btn => btn.classList.remove('active-nav'));
+            const desktopBtn = document.getElementById(`nav-${tabId}`);
+            const mobileBtn = document.getElementById(`m-nav-${tabId}`);
+            if(desktopBtn) desktopBtn.classList.add('active-nav');
+            if(mobileBtn) mobileBtn.classList.add('active-nav');
+
+            const titles = { dashboard: 'Business Report', pos: 'Cashier', menu: 'Product Management', history: 'Profit/Loss Statement' };
+            document.getElementById('current-tab-title').textContent = titles[tabId];
+            
+            if(tabId === 'history') renderHistory();
+            
+            lucide.createIcons();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function formatIDR(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+        }
+
+        function toggleModal(id, show) {
+            const modal = document.getElementById(id);
+            if(show) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleLiterInputs() {
+            const isChecked = document.getElementById('menu-has-liter').checked;
+            const container = document.getElementById('liter-pricing-container');
+            const priceL = document.getElementById('menu-price-liter');
+            const hppL = document.getElementById('menu-hpp-liter');
+            
+            if(isChecked) {
+                container.classList.remove('hidden');
+                priceL.required = true;
+                hppL.required = true;
+            } else {
+                container.classList.add('hidden');
+                priceL.required = false;
+                hppL.required = false;
+            }
+        }
+
+        // --- POS & CART ---
+        function filterCategory(cat) {
+            currentFilter = cat;
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-slate-900', 'text-white');
+                btn.classList.add('bg-white', 'text-slate-600');
+                if(btn.innerText === (cat === 'All' ? 'Semua' : (cat === 'Coffee' ? 'Kopi' : (cat === 'Non-Coffee' ? 'Non-Kopi' : 'Snack')))) {
+                    btn.classList.replace('bg-white', 'bg-slate-900');
+                    btn.classList.replace('text-slate-600', 'text-white');
+                }
+            });
+            renderPOSMenu();
+        }
+
+        function searchMenu(val) {
+            currentSearch = val.toLowerCase();
+            renderPOSMenu();
+        }
+
+        function renderPOSMenu() {
+            const grid = document.getElementById('pos-menu-grid');
+            const filtered = menuItems.filter(item => {
+                const matchCat = currentFilter === 'All' || item.category === currentFilter;
+                const matchSearch = item.name.toLowerCase().includes(currentSearch);
+                return matchCat && matchSearch;
+            });
+
+            grid.innerHTML = filtered.map(item => `
+                <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center text-center transition-all hover:border-amber-400">
+                    <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl mb-3">${item.icon}</div>
+                    <h3 class="font-bold text-sm text-slate-800 leading-tight mb-1">${item.name}</h3>
+                    <p class="text-[10px] font-black text-slate-400 mb-3">${formatIDR(item.price)}</p>
+                    
+                    <div class="w-full flex flex-col gap-2 mt-auto">
+                        <button onclick="addToCart(${item.id}, 'Regular')" class="w-full bg-slate-900 text-white py-2.5 rounded-xl text-[10px] font-black hover:bg-amber-500 transition-colors">REGULAR</button>
+                        ${item.hasLiter ? `<button onclick="addToCart(${item.id}, '1 Liter')" class="w-full bg-amber-100 text-amber-700 py-2.5 rounded-xl text-[10px] font-black hover:bg-amber-200 transition-colors">1 LITER</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(id, variant) {
+            const item = menuItems.find(i => i.id === id);
+            const cartId = `${id}-${variant}`;
+            const existing = cart.find(c => c.cartId === cartId);
+            
+            const price = variant === '1 Liter' ? item.priceLiter : item.price;
+            const hpp = variant === '1 Liter' ? item.hppLiter : item.hpp;
+
+            if(existing) {
+                existing.qty++;
+            } else {
+                cart.push({ ...item, cartId, variant, price, hpp, qty: 1 });
+            }
+            updateCart();
+            showToast(`+ ${item.name} (${variant})`);
+        }
+
+        function updateCart() {
+            const container = document.getElementById('cart-items');
+            if(cart.length === 0) {
+                container.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-300"><i data-lucide="shopping-basket" class="w-12 h-12 mb-3"></i><p class="text-sm font-medium">Keranjang Kosong</p></div>`;
+                lucide.createIcons();
+            } else {
+                container.innerHTML = cart.map(item => `
+                    <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <span class="text-xl">${item.icon}</span>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-xs truncate">${item.name}</h4>
+                            <p class="text-[9px] font-black text-amber-600 uppercase tracking-tighter">${item.variant}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeQty('${item.cartId}', -1)" class="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-xs">-</button>
+                            <span class="text-xs font-black w-4 text-center">${item.qty}</span>
+                            <button onclick="changeQty('${item.cartId}', 1)" class="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-xs">+</button>
+                        </div>
+                        <div class="text-right ml-1">
+                            <p class="text-[10px] font-black">${formatIDR(item.price * item.qty).replace(',00','')}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const total = cart.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+            document.getElementById('cart-subtotal').textContent = formatIDR(total);
+            document.getElementById('cart-total').textContent = formatIDR(total);
+        }
+
+        function changeQty(cartId, delta) {
+            const item = cart.find(c => c.cartId === cartId);
+            item.qty += delta;
+            if(item.qty < 1) cart = cart.filter(c => c.cartId !== cartId);
+            updateCart();
+        }
+
+        function clearCart() { cart = []; updateCart(); }
+
+        // --- CHECKOUT & RECEIPT ---
+        function checkout() {
+            if(cart.length === 0) return;
+            const now = new Date();
+            const order = {
+                id: `INV-${now.getTime()}`,
+                items: [...cart],
+                total: cart.reduce((a, b) => a + (b.price * b.qty), 0),
+                totalHpp: cart.reduce((a, b) => a + (b.hpp * b.qty), 0),
+                timestamp: now
+            };
+            salesHistory.unshift(order);
+            
+            // Tampilkan Struk
+            renderReceiptContent(order);
+            toggleModal('receipt-modal', true);
+
+            // Reset UI
+            cart = [];
+            updateCart();
+            updateStats();
+            renderHistory();
+            showToast("Pembayaran Berhasil!");
+        }
+
+        function renderReceiptContent(order) {
+            const content = document.getElementById('receipt-content');
+            const itemsHtml = order.items.map(item => `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+                    <div style="flex: 1; padding-right: 10px;">
+                        ${item.qty}x ${item.name.substring(0, 16)} ${item.variant === '1 Liter' ? '(1L)' : ''}
+                    </div>
+                    <div>${formatIDR(item.price * item.qty).replace('Rp\u00A0','')}</div>
+                </div>
+            `).join('');
+
+            content.innerHTML = `
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="font-weight: bold; font-size: 16px; letter-spacing: 1px;">TITIK HENING</div>
+                    <div style="font-size: 9px; margin-top: 2px;">Coffee</div>
+                    <div style="font-size: 8px; color: #666;">Jakarta Utara, Indonesia</div>
+                </div>
+                
+                <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+                
+                <div style="font-size: 9px; margin-bottom: 8px;">
+                    ID  : ${order.id}<br>
+                    TGL : ${order.timestamp.toLocaleString('id-ID', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}<br>
+                    KSR : Admin
+                </div>
+                
+                <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+                
+                <div style="margin-bottom: 10px;">
+                    ${itemsHtml}
+                </div>
+                
+                <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+                
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px;">
+                    <span>TOTAL</span>
+                    <span>${formatIDR(order.total).replace('Rp\u00A0','')}</span>
+                </div>
+                
+                <div style="margin-top: 20px; text-align: center; font-size: 9px;">
+                    TERIMA KASIH<br>
+                    "Nikmati heningmu di setiap tegukan"<br>
+                    Instagram: @titikheningcoffee
+                </div>
+            `;
+        }
+
+        function printReceipt() {
+            window.print();
+        }
+
+        function downloadReceipt() {
+            const target = document.getElementById('receipt-content');
+            html2canvas(target, { scale: 3 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `TitikHening-${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            });
+        }
+
+        // --- REPORTING FEATURES (Filter & Excel) ---
+        function applyReportFilter() {
+            const startStr = document.getElementById('report-start').value;
+            const endStr = document.getElementById('report-end').value;
+
+            if(!startStr || !endStr) return;
+
+            const start = new Date(startStr);
+            start.setHours(0,0,0,0);
+            const end = new Date(endStr);
+            end.setHours(23,59,59,999);
+
+            filteredHistory = salesHistory.filter(sale => {
+                const saleDate = new Date(sale.timestamp);
+                return saleDate >= start && saleDate <= end;
+            });
+
+            renderHistory(filteredHistory);
+            showToast("Laporan diperbarui");
+        }
+
+        function exportToExcel() {
+            const dataToExport = filteredHistory.length > 0 ? filteredHistory : salesHistory;
+            
+            if(dataToExport.length === 0) {
+                showToast("Tidak ada data untuk diekspor");
+                return;
+            }
+
+            const rows = dataToExport.map(sale => ({
+                "No. Invoice": sale.id,
+                "Tanggal": sale.timestamp.toLocaleDateString('id-ID'),
+                "Jam": sale.timestamp.toLocaleTimeString('id-ID'),
+                "Items": sale.items.map(i => `${i.name} (${i.variant}) x${i.qty}`).join(", "),
+                "Omzet (Rp)": sale.total,
+                "Modal (Rp)": sale.totalHpp,
+                "Laba (Rp)": sale.total - sale.totalHpp
+            }));
+
+            // Add totals row
+            const totalOmzet = dataToExport.reduce((a, b) => a + b.total, 0);
+            const totalModal = dataToExport.reduce((a, b) => a + b.totalHpp, 0);
+            rows.push({});
+            rows.push({
+                "No. Invoice": "TOTAL KESELURUHAN",
+                "Omzet (Rp)": totalOmzet,
+                "Modal (Rp)": totalModal,
+                "Laba (Rp)": totalOmzet - totalModal
+            });
+
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Laporan Penjualan");
+            
+            const fileName = `Laporan_TitikHening_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            showToast("Excel berhasil diunduh");
+        }
+
+        function renderHistory(data = null) {
+            const container = document.getElementById('history-list');
+            const summaryGrid = document.getElementById('report-summary-grid');
+            const listToRender = data || (filteredHistory.length > 0 ? filteredHistory : salesHistory);
+
+            if(listToRender.length === 0) {
+                container.innerHTML = `<div class="bg-white p-12 rounded-[2rem] text-center border border-slate-100 shadow-sm text-slate-400 font-medium italic text-sm">No transaction history for this period.</div>`;
+                summaryGrid.classList.add('hidden');
+                return;
+            }
+
+            // Show and update report summary
+            const omzet = listToRender.reduce((a, b) => a + b.total, 0);
+            const modal = listToRender.reduce((a, b) => a + b.totalHpp, 0);
+            const laba = omzet - modal;
+
+            summaryGrid.classList.remove('hidden');
+            summaryGrid.innerHTML = `
+                <div class="bg-white p-6 rounded-[2rem] border-l-4 border-l-blue-500 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Revenue</p>
+                    <p class="text-xl font-black text-slate-900">${formatIDR(omzet).replace(',00','')}</p>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] border-l-4 border-l-red-400 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Modal</p>
+                    <p class="text-xl font-black text-slate-900">${formatIDR(modal).replace(',00','')}</p>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] border-l-4 border-l-emerald-500 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Net Profit</p>
+                    <p class="text-xl font-black text-emerald-600">${formatIDR(laba).replace(',00','')}</p>
+                </div>
+            `;
+
+            container.innerHTML = listToRender.map(sale => `
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-slate-50 text-slate-400 rounded-2xl"><i data-lucide="receipt" class="w-6 h-6"></i></div>
+                        <div>
+                            <p class="font-bold text-slate-900">${sale.items.length} Menu • ${formatIDR(sale.total).replace(',00','')}</p>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${sale.id} • ${sale.timestamp.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right hidden sm:block mr-2">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Profit Margin</p>
+                            <p class="text-xs font-black text-emerald-500">${formatIDR(sale.total - sale.totalHpp).replace(',00','')}</p>
+                        </div>
+                        <button onclick='renderReceiptContent(${JSON.stringify(sale)}); toggleModal("receipt-modal", true);' class="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors">
+                            STRUK
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // --- MANAGEMENT & EDIT ---
+        function openMenuModal(id = null) {
+            const form = document.getElementById('form-menu');
+            const title = document.getElementById('modal-title');
+            const btn = document.getElementById('btn-submit-menu');
+            
+            form.reset();
+            editingId = id;
+            document.getElementById('liter-pricing-container').classList.add('hidden');
+
+            if (id) {
+                const item = menuItems.find(m => m.id === id);
+                title.textContent = "Edit Menu";
+                btn.textContent = "PRODUCT UPDATE";
+                
+                document.getElementById('menu-name').value = item.name;
+                document.getElementById('menu-category').value = item.category;
+                document.getElementById('menu-price').value = item.price;
+                document.getElementById('menu-hpp').value = item.hpp;
+                document.getElementById('menu-has-liter').checked = item.hasLiter;
+                
+                if(item.hasLiter) {
+                    document.getElementById('liter-pricing-container').classList.remove('hidden');
+                    document.getElementById('menu-price-liter').value = item.priceLiter;
+                    document.getElementById('menu-hpp-liter').value = item.hppLiter;
+                    document.getElementById('menu-price-liter').required = true;
+                    document.getElementById('menu-hpp-liter').required = true;
+                }
+            } else {
+                title.textContent = "Add New Menu";
+                btn.textContent = "SAVE PRODUCT";
+            }
+            
+            toggleModal('modal-menu', true);
+        }
+
+        function renderMenuSettings() {
+            const tbody = document.getElementById('menu-table-body');
+            tbody.innerHTML = menuItems.map(item => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-8 py-5 flex items-center gap-3">
+                        <span class="text-xl">${item.icon}</span>
+                        <div>
+                            <p class="font-bold">${item.name}</p>
+                            <p class="text-[9px] text-slate-400 uppercase tracking-tighter">${item.category}</p>
+                        </div>
+                    </td>
+                    <td class="px-8 py-5">
+                        <span class="px-2 py-1 rounded-lg bg-slate-100 text-[10px] font-black text-slate-500 uppercase">${item.category}</span>
+                    </td>
+                    <td class="px-8 py-5 text-right font-black text-slate-700">
+                        <p>${formatIDR(item.price).replace(',00','')}</p>
+                        ${item.hasLiter ? `<p class="text-[9px] text-indigo-500">1L: ${formatIDR(item.priceLiter).replace(',00','')}</p>` : ''}
+                    </td>
+                    <td class="px-8 py-5 text-right font-medium text-red-400">
+                        <p>${formatIDR(item.hpp).replace(',00','')}</p>
+                        ${item.hasLiter ? `<p class="text-[9px] text-red-300">1L: ${formatIDR(item.hppLiter).replace(',00','')}</p>` : ''}
+                    </td>
+                    <td class="px-8 py-5 text-center">
+                        <div class="flex items-center justify-center gap-3">
+                            <button onclick="openMenuModal(${item.id})" class="text-slate-300 hover:text-amber-500 transition-colors">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteMenu(${item.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+            updateAnalysis();
+        }
+
+        function deleteMenu(id) {
+            menuItems = menuItems.filter(m => m.id !== id);
+            renderMenuSettings();
+            renderPOSMenu();
+            showToast("Menu dihapus");
+        }
+
+        document.getElementById('form-menu').onsubmit = (e) => {
+            e.preventDefault();
+            const category = document.getElementById('menu-category').value;
+            const hasLiter = document.getElementById('menu-has-liter').checked;
+            
+            const data = {
+                name: document.getElementById('menu-name').value,
+                category: category,
+                price: parseInt(document.getElementById('menu-price').value),
+                hpp: parseInt(document.getElementById('menu-hpp').value),
+                hasLiter: hasLiter,
+                priceLiter: hasLiter ? parseInt(document.getElementById('menu-price-liter').value) : 0,
+                hppLiter: hasLiter ? parseInt(document.getElementById('menu-hpp-liter').value) : 0,
+                icon: category === 'Coffee' ? '☕' : (category === 'Snack' ? '🥐' : '🍵')
+            };
+
+            if (editingId) {
+                const index = menuItems.findIndex(m => m.id === editingId);
+                menuItems[index] = { ...menuItems[index], ...data };
+                showToast("Data diperbarui!");
+            } else {
+                menuItems.push({ id: Date.now(), ...data });
+                showToast("Menu ditambahkan!");
+            }
+            
+            renderMenuSettings();
+            renderPOSMenu();
+            toggleModal('modal-menu', false);
+            updateStats();
+        };
+
+        // --- STATS & DASHBOARD ---
+        function updateStats() {
+            const revenue = salesHistory.reduce((acc, curr) => acc + curr.total, 0);
+            const totalHpp = salesHistory.reduce((acc, curr) => acc + curr.totalHpp, 0);
+            const profit = revenue - totalHpp;
+            const margin = revenue > 0 ? (profit / revenue * 100).toFixed(1) : 0;
+
+            document.getElementById('stat-revenue').textContent = formatIDR(revenue).replace(',00','');
+            document.getElementById('stat-profit').textContent = formatIDR(profit).replace(',00','');
+            document.getElementById('stat-orders').textContent = salesHistory.length;
+            document.getElementById('stat-margin').textContent = margin + '%';
+
+            // Top Products Calc
+            const productSales = {};
+            salesHistory.forEach(sale => {
+                sale.items.forEach(item => {
+                    const key = `${item.name} (${item.variant})`;
+                    productSales[key] = (productSales[key] || 0) + item.qty;
+                });
+            });
+
+            const topContainer = document.getElementById('top-products');
+            const sorted = Object.entries(productSales).sort((a,b) => b[1] - a[1]).slice(0, 4);
+            
+            if(sorted.length > 0) {
+                topContainer.innerHTML = sorted.map(([name, qty]) => `
+                    <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <span class="font-bold text-slate-700 text-sm truncate pr-2">${name}</span>
+                        <span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg shrink-0">${qty}x</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateAnalysis() {
+            const container = document.getElementById('margin-analysis');
+            const sortedByMargin = [...menuItems].sort((a,b) => {
+                const margA = (a.price - a.hpp) / a.price;
+                const margB = (b.price - b.hpp) / b.price;
+                return margB - margA;
+            }).slice(0, 4);
+
+            container.innerHTML = sortedByMargin.map(item => {
+                const profit = item.price - item.hpp;
+                const percent = ((profit / item.price) * 100).toFixed(0);
+                return `
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs font-bold">
+                            <span class="truncate pr-2">${item.name}</span>
+                            <span class="text-emerald-600">${percent}%</span>
+                        </div>
+                        <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-emerald-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.querySelector('span').textContent = msg;
+            toast.classList.replace('opacity-0', 'opacity-100');
+            toast.classList.replace('pointer-events-none', 'pointer-events-auto');
+            setTimeout(() => {
+                toast.classList.replace('opacity-100', 'opacity-0');
+                toast.classList.replace('pointer-events-auto', 'pointer-events-none');
+            }, 2000);
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
