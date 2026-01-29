@@ -18,7 +18,6 @@
             display: none; align-items: center; justify-content: center; z-index: 100;
         }
 
-        /* Animasi Getar untuk Input yang Kosong */
         .shake {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
             transform: translate3d(0, 0, 0);
@@ -67,11 +66,11 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATION (Posisi Tengah Atas, Lebih Ringkas) -->
+    <!-- TOAST NOTIFICATION -->
     <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
         <div id="toast" class="bg-red-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-semibold text-sm opacity-0 -translate-y-10 transition-all duration-300">
             <i data-lucide="alert-circle" class="w-4 h-4"></i>
-            <span id="toast-msg">Harap isi Nama Kasir!</span>
+            <span id="toast-msg">Notifikasi</span>
         </div>
     </div>
 
@@ -174,29 +173,46 @@
 
         <!-- TAB LAPORAN -->
         <div id="tab-laporan" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-[#8b4513]">
+                <h2 class="text-lg font-bold mb-4 text-[#3e1f0a] flex items-center gap-2">
+                    <i data-lucide="filter" class="w-5 h-5"></i> Filter Periode
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Mulai Tanggal</label>
+                        <input type="date" id="filter-date-start" class="w-full border border-[#d2b48c] rounded-lg px-3 py-2 text-sm outline-none" onchange="renderLaporan()">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Sampai Tanggal</label>
+                        <input type="date" id="filter-date-end" class="w-full border border-[#d2b48c] rounded-lg px-3 py-2 text-sm outline-none" onchange="renderLaporan()">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="resetFilterTanggal()" class="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-bold flex-1">Reset</button>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="syncFromCloud()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs flex items-center gap-1"><i data-lucide="refresh-cw" class="w-3 h-3"></i> Sync Cloud</button>
+                        <button onclick="exportToExcel()" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs flex items-center gap-1"><i data-lucide="file-spreadsheet" class="w-3 h-3"></i> Excel</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Omzet Total</p>
+                    <p class="text-[10px] text-gray-500 font-bold uppercase">Omzet Terfilter</p>
                     <h3 id="summary-omzet" class="text-xl font-bold">Rp 0</h3>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Modal Total</p>
+                    <p class="text-[10px] text-gray-500 font-bold uppercase">Modal Terfilter</p>
                     <h3 id="summary-modal" class="text-xl font-bold">Rp 0</h3>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Laba Bersih</p>
+                    <p class="text-[10px] text-gray-500 font-bold uppercase">Laba Terfilter</p>
                     <h3 id="summary-laba" class="text-xl font-bold text-green-700">Rp 0</h3>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-[#8b4513]">
-                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h2 class="text-lg font-bold text-[#3e1f0a]">Riwayat Transaksi</h2>
-                    <div class="flex gap-2">
-                        <button onclick="syncFromCloud()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs flex items-center gap-1"><i data-lucide="refresh-cw" class="w-3 h-3"></i> Sync Cloud</button>
-                        <button onclick="exportToExcel()" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs flex items-center gap-1"><i data-lucide="file-spreadsheet" class="w-3 h-3"></i> Excel</button>
-                    </div>
-                </div>
+                <h2 class="text-lg font-bold mb-4 text-[#3e1f0a]">Riwayat Transaksi</h2>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm" id="table-transaksi">
                         <thead>
@@ -284,32 +300,20 @@
         document.getElementById('config-url').value = scriptURL;
         document.getElementById('nama-petugas').value = localStorage.getItem('nama_petugas') || '';
 
-        // Toast Helper (Diperbarui: Muncul di tengah atas dengan transisi yang halus)
         function showToast(msg, type = 'error') {
             const toast = document.getElementById('toast');
             const msgEl = document.getElementById('toast-msg');
-            
             msgEl.innerText = msg;
-            
-            // Atur warna berdasarkan tipe
-            if(type === 'success') {
-                toast.classList.replace('bg-red-600', 'bg-green-600');
-            } else {
-                toast.classList.replace('bg-green-600', 'bg-red-600');
-            }
-
-            // Tampilkan (Hilangkan efek sembunyi)
+            toast.classList.toggle('bg-red-600', type === 'error');
+            toast.classList.toggle('bg-green-600', type === 'success');
             toast.classList.remove('opacity-0', '-translate-y-10');
             toast.classList.add('opacity-100', 'translate-y-0');
-
-            // Sembunyikan setelah 3 detik
             setTimeout(() => {
                 toast.classList.replace('opacity-100', 'opacity-0');
                 toast.classList.replace('translate-y-0', '-translate-y-10');
             }, 3000);
         }
 
-        // Error Feedback Helper
         function clearErrorPetugas() {
             const wrapper = document.getElementById('wrapper-petugas');
             wrapper.classList.remove('shake', 'border-red-400');
@@ -409,20 +413,13 @@
         function handleCheckout() {
             const namaPetugas = document.getElementById('nama-petugas');
             const wrapperPetugas = document.getElementById('wrapper-petugas');
-
-            if (keranjang.length === 0) {
-                showToast("Pilih menu terlebih dahulu!");
-                return;
-            }
-
+            if (keranjang.length === 0) return showToast("Pilih menu terlebih dahulu!");
             if (!namaPetugas.value.trim()) {
                 wrapperPetugas.classList.add('shake', 'border-red-400');
                 namaPetugas.focus();
-                showToast("Nama Kasir belum diisi!");
-                setTimeout(() => wrapperPetugas.classList.remove('shake'), 500);
+                showToast("Kasir belum diisi!");
                 return;
             }
-
             bukaModalPembayaran();
         }
 
@@ -484,14 +481,13 @@
             const petugas = document.getElementById('nama-petugas').value;
             const hpp = keranjang.reduce((a,b) => a + (b.hpp*b.qty), 0);
             const tunaiDiterima = parseInt(document.getElementById('uang-diterima').value) || 0;
-            const rincianString = keranjang.map(i => `${i.nama} (${i.varian}) x${i.qty}`).join(', ');
             
             const trx = { 
                 id: 'TRX'+Date.now(), waktu: new Date().toISOString(), petugas, 
                 itemDetails: [...keranjang], metode: metodeTerpilih,
                 diterima: metodeTerpilih === 'Cash' ? tunaiDiterima : totalBelanja,
                 kembalian: metodeTerpilih === 'Cash' ? (tunaiDiterima - totalBelanja) : 0,
-                omzet: totalBelanja, modal: hpp, laba: totalBelanja - hpp, rincian: rincianString
+                omzet: totalBelanja, modal: hpp, laba: totalBelanja - hpp
             };
             
             riwayatTransaksi.unshift(trx);
@@ -499,12 +495,7 @@
             
             if(scriptURL) {
                 toggleLoader(true, "Mencatat Transaksi...");
-                try {
-                    await fetch(scriptURL, { 
-                        method: 'POST', mode: 'no-cors', 
-                        body: JSON.stringify({ action: 'addTransaction', ...trx }) 
-                    });
-                } catch(e) {}
+                try { await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'addTransaction', ...trx }) }); } catch(e) {}
                 finally { setTimeout(() => toggleLoader(false), 500); }
             }
             
@@ -516,12 +507,9 @@
         function showReceipt(trx) {
             const date = new Date(trx.waktu);
             let itemsHTML = '';
-            if (trx.itemDetails && Array.isArray(trx.itemDetails)) {
-                trx.itemDetails.forEach(item => {
-                    itemsHTML += `<div class="receipt-item"><div>${item.nama} (${item.varian})</div><div style="display:flex; justify-content:space-between; font-size:11px;"><span>${item.qty} x ${item.harga.toLocaleString()}</span><span>${(item.qty * item.harga).toLocaleString()}</span></div></div>`;
-                });
-            }
-
+            trx.itemDetails.forEach(item => {
+                itemsHTML += `<div class="receipt-item"><div>${item.nama} (${item.varian})</div><div style="display:flex; justify-content:space-between; font-size:11px;"><span>${item.qty} x ${item.harga.toLocaleString()}</span><span>${(item.qty * item.harga).toLocaleString()}</span></div></div>`;
+            });
             document.getElementById('receipt-content').innerHTML = `
                 <div class="receipt-header">
                     <h2 style="margin:0; font-size:18px; font-weight:bold;">TITIK HENING</h2>
@@ -529,15 +517,15 @@
                 </div>
                 <div style="font-size:10px; margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between;"><span>ID: ${trx.id.slice(-6)}</span><span>${date.toLocaleDateString()}</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span>Kasir: ${trx.petugas || 'Kasir'}</span><span>${date.toLocaleTimeString()}</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Kasir: ${trx.petugas}</span><span>${date.toLocaleTimeString()}</span></div>
                 </div>
                 <hr class="receipt-divider">
                 ${itemsHTML}
                 <hr class="receipt-divider">
                 <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>TOTAL</span><span>Rp ${trx.omzet.toLocaleString()}</span></div>
                 <div style="font-size:11px; margin-top:5px;">
-                    <div style="display:flex; justify-content:space-between;"><span>Metode:</span><span>${trx.metode || 'Cash'}</span></div>
-                    ${trx.metode === 'Cash' ? `<div style="display:flex; justify-content:space-between;"><span>Bayar:</span><span>Rp ${(trx.diterima || trx.omzet).toLocaleString()}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>Rp ${(trx.kembalian || 0).toLocaleString()}</span></div>` : ''}
+                    <div style="display:flex; justify-content:space-between;"><span>Metode:</span><span>${trx.metode}</span></div>
+                    ${trx.metode === 'Cash' ? `<div style="display:flex; justify-content:space-between;"><span>Bayar:</span><span>Rp ${trx.diterima.toLocaleString()}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>Rp ${trx.kembalian.toLocaleString()}</span></div>` : ''}
                 </div>
                 <div class="receipt-footer">
                     <p style="margin:2px 0; font-size:10px;">Terima kasih atas kunjungannya</p>
@@ -547,32 +535,46 @@
             document.getElementById('modal-struk').classList.remove('hidden');
         }
 
-        async function pushMenuToCloud() {
-            if(!scriptURL) return;
-            toggleLoader(true, "Sinkronisasi Menu ke Cloud...");
-            try {
-                await fetch(scriptURL, {
-                    method: 'POST', mode: 'no-cors', cache: 'no-cache',
-                    body: JSON.stringify({ action: 'saveProducts', products: dbMenu })
-                });
-            } catch(e) { console.error("Gagal push ke cloud."); }
-            finally { toggleLoader(false); }
+        function resetFilterTanggal() {
+            document.getElementById('filter-date-start').value = '';
+            document.getElementById('filter-date-end').value = '';
+            renderLaporan();
         }
 
-        async function pullMenuFromCloud() {
-            if(!scriptURL) return showToast("URL Cloud belum diisi!");
-            toggleLoader(true, "Mengambil Menu...");
-            try {
-                const res = await fetch(`${scriptURL}?action=getProducts`);
-                const data = await res.json();
-                if(Array.isArray(data)) {
-                    dbMenu = data;
-                    localStorage.setItem('kasir_menu_cloud', JSON.stringify(dbMenu));
-                    renderMenu(); renderAdminList();
-                    showToast("Menu berhasil ditarik!", 'success');
-                }
-            } catch(e) { showToast("Gagal tarik data."); }
-            finally { toggleLoader(false); }
+        function renderLaporan() {
+            const body = document.getElementById('laporan-body');
+            if(!body) return;
+            body.innerHTML = '';
+            
+            const start = document.getElementById('filter-date-start').value;
+            const end = document.getElementById('filter-date-end').value;
+            
+            let filtered = [...riwayatTransaksi];
+
+            if (start || end) {
+                filtered = filtered.filter(t => {
+                    const tDate = new Date(t.waktu).setHours(0,0,0,0);
+                    const sDate = start ? new Date(start).setHours(0,0,0,0) : null;
+                    const eDate = end ? new Date(end).setHours(0,0,0,0) : null;
+                    
+                    if (sDate && eDate) return tDate >= sDate && tDate <= eDate;
+                    if (sDate) return tDate >= sDate;
+                    if (eDate) return tDate <= eDate;
+                    return true;
+                });
+            }
+
+            let o=0, m=0, l=0;
+            filtered.forEach(t => {
+                o+=t.omzet; m+=t.modal; l+=t.laba;
+                const methodIcon = t.metode === 'QRIS' ? '<span class="flex items-center gap-1 text-blue-600 font-bold"><i data-lucide="qr-code" class="w-3 h-3"></i> QRIS</span>' : '<span class="flex items-center gap-1 text-green-600 font-bold"><i data-lucide="banknote" class="w-3 h-3"></i> Tunai</span>';
+                body.innerHTML += `<tr class="border-b text-[10px]"><td class="p-3 font-mono text-gray-500">#${String(t.id).slice(-6)}</td><td class="p-3">${new Date(t.waktu).toLocaleDateString()}</td><td class="p-3 uppercase font-bold">${t.petugas}</td><td class="p-3">${methodIcon}</td><td class="p-3 font-bold">Rp ${t.omzet.toLocaleString()}</td><td class="p-3 text-center"><button onclick='showReceipt(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="bg-[#fdfaf7] border border-[#d2b48c] px-3 py-1 rounded text-[#8b4513]">Struk</button></td></tr>`;
+            });
+
+            document.getElementById('summary-omzet').innerText = 'Rp '+o.toLocaleString();
+            document.getElementById('summary-modal').innerText = 'Rp '+m.toLocaleString();
+            document.getElementById('summary-laba').innerText = 'Rp '+l.toLocaleString();
+            if (window.lucide) lucide.createIcons();
         }
 
         async function syncFromCloud() {
@@ -594,13 +596,34 @@
             finally { toggleLoader(false); }
         }
 
+        async function pushMenuToCloud() {
+            if(!scriptURL) return;
+            toggleLoader(true, "Sinkronisasi Menu ke Cloud...");
+            try { await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'saveProducts', products: dbMenu }) }); } catch(e) {}
+            finally { toggleLoader(false); }
+        }
+
+        async function pullMenuFromCloud() {
+            if(!scriptURL) return showToast("URL Cloud belum diisi!");
+            toggleLoader(true, "Mengambil Menu...");
+            try {
+                const res = await fetch(`${scriptURL}?action=getProducts`);
+                const data = await res.json();
+                if(Array.isArray(data)) {
+                    dbMenu = data;
+                    localStorage.setItem('kasir_menu_cloud', JSON.stringify(dbMenu));
+                    renderMenu(); renderAdminList();
+                    showToast("Menu ditarik!", 'success');
+                }
+            } catch(e) { showToast("Gagal tarik data."); }
+            finally { toggleLoader(false); }
+        }
+
         document.getElementById('menu-form').onsubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('menu-id').value || Date.now();
             const newItem = {
-                id: parseInt(id),
-                nama: document.getElementById('menu-nama').value,
-                foto: document.getElementById('menu-foto').value,
+                id: parseInt(id), nama: document.getElementById('menu-nama').value, foto: document.getElementById('menu-foto').value,
                 variants: {
                     'Reguler': { harga: parseInt(document.getElementById('menu-harga-reg').value) || 0, hpp: parseInt(document.getElementById('menu-hpp-reg').value) || 0 },
                     '1 Liter': { harga: parseInt(document.getElementById('menu-harga-1l').value) || 0, hpp: parseInt(document.getElementById('menu-hpp-1l').value) || 0 }
@@ -608,19 +631,10 @@
             };
             const idx = dbMenu.findIndex(m => m.id == id);
             if(idx > -1) dbMenu[idx] = newItem; else dbMenu.push(newItem);
-            
             localStorage.setItem('kasir_menu_cloud', JSON.stringify(dbMenu));
-            
-            if (scriptURL) {
-                await pushMenuToCloud();
-                showToast("Menu di-update!", 'success');
-            } else {
-                showToast("Simpan lokal (Offline).", 'success');
-            }
-
-            resetMenuForm(); 
-            renderMenu(); 
-            renderAdminList();
+            if (scriptURL) await pushMenuToCloud();
+            resetMenuForm(); renderMenu(); renderAdminList();
+            showToast("Menu disimpan!", 'success');
         };
 
         function resetMenuForm() {
@@ -659,26 +673,8 @@
                 dbMenu = dbMenu.filter(m => m.id != id); 
                 localStorage.setItem('kasir_menu_cloud', JSON.stringify(dbMenu)); 
                 if (scriptURL) await pushMenuToCloud();
-                renderMenu(); 
-                renderAdminList(); 
-                showToast("Produk dihapus.", 'success');
+                renderMenu(); renderAdminList(); showToast("Produk dihapus.", 'success');
             } 
-        }
-
-        function renderLaporan() {
-            const body = document.getElementById('laporan-body');
-            if(!body) return;
-            body.innerHTML = '';
-            let o=0, m=0, l=0;
-            riwayatTransaksi.forEach(t => {
-                o+=t.omzet; m+=t.modal; l+=t.laba;
-                const methodIcon = t.metode === 'QRIS' ? '<span class="flex items-center gap-1 text-blue-600 font-bold"><i data-lucide="qr-code" class="w-3 h-3"></i> QRIS</span>' : '<span class="flex items-center gap-1 text-green-600 font-bold"><i data-lucide="banknote" class="w-3 h-3"></i> Tunai</span>';
-                body.innerHTML += `<tr class="border-b text-[10px]"><td class="p-3 font-mono text-gray-500">#${String(t.id).slice(-6)}</td><td class="p-3">${new Date(t.waktu).toLocaleDateString()}</td><td class="p-3 uppercase">${t.petugas || '-'}</td><td class="p-3">${methodIcon}</td><td class="p-3 font-bold">Rp ${Number(t.omzet).toLocaleString()}</td><td class="p-3 text-center"><button onclick='showReceipt(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="bg-[#fdfaf7] border border-[#d2b48c] px-3 py-1 rounded text-[#8b4513]">Struk</button></td></tr>`;
-            });
-            document.getElementById('summary-omzet').innerText = 'Rp '+o.toLocaleString();
-            document.getElementById('summary-modal').innerText = 'Rp '+m.toLocaleString();
-            document.getElementById('summary-laba').innerText = 'Rp '+l.toLocaleString();
-            if (window.lucide) lucide.createIcons();
         }
 
         function switchTab(t) {
@@ -693,7 +689,7 @@
             const worksheet = XLSX.utils.json_to_sheet(riwayatTransaksi);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
-            XLSX.writeFile(workbook, `Laporan_Kasir_${Date.now()}.xlsx`);
+            XLSX.writeFile(workbook, `Laporan_${Date.now()}.xlsx`);
         }
 
         function closeReceiptModal() { document.getElementById('modal-struk').classList.add('hidden'); }
