@@ -12,27 +12,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #fdfaf7; }
-        
         .loading-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.5);
             display: none; align-items: center; justify-content: center; z-index: 100;
         }
-
-        /* Animasi Getar untuk Input yang Kosong */
-        .shake {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-            transform: translate3d(0, 0, 0);
-            border-color: #ef4444 !important;
-            background-color: #fef2f2 !important;
-        }
-
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
-
         .menu-card img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background-color: #f5e6d3; }
         
         #receipt-content { 
@@ -67,14 +50,6 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATION (Posisi Tengah Atas, Lebih Ringkas) -->
-    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
-        <div id="toast" class="bg-red-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-semibold text-sm opacity-0 -translate-y-10 transition-all duration-300">
-            <i data-lucide="alert-circle" class="w-4 h-4"></i>
-            <span id="toast-msg">Harap isi Nama Kasir!</span>
-        </div>
-    </div>
-
     <nav class="bg-[#5d2e0d] text-[#fdfaf7] p-4 shadow-lg no-print">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center gap-2">
@@ -93,9 +68,9 @@
             <div id="status-cloud" class="flex-1 text-center text-xs font-bold text-gray-500 bg-gray-100 py-2 rounded border border-gray-200">
                 Status: Standalone Mode
             </div>
-            <div id="wrapper-petugas" class="flex items-center gap-2 bg-white px-3 py-1 rounded border border-[#d2b48c] shadow-sm transition-all duration-300">
+            <div class="flex items-center gap-2 bg-white px-3 py-1 rounded border border-[#d2b48c] shadow-sm">
                 <i data-lucide="user" class="w-4 h-4 text-[#8b4513]"></i>
-                <input type="text" id="nama-petugas" placeholder="Nama Kasir" class="text-xs font-bold outline-none text-[#3e1f0a] w-32 bg-transparent" oninput="clearErrorPetugas()">
+                <input type="text" id="nama-petugas" placeholder="Nama Kasir" class="text-xs font-bold outline-none text-[#3e1f0a] w-32" onchange="savePetugas()">
             </div>
         </div>
 
@@ -124,7 +99,7 @@
                         <span class="text-[#3e1f0a]">Total Akhir:</span>
                         <span id="cart-total" class="text-[#8b4513]">Rp 0</span>
                     </div>
-                    <button onclick="handleCheckout()" class="w-full bg-[#8b4513] hover:bg-[#5d2e0d] text-white font-bold py-3 rounded-lg mt-4 transition shadow-lg flex items-center justify-center gap-2">
+                    <button onclick="bukaModalPembayaran()" class="w-full bg-[#8b4513] hover:bg-[#5d2e0d] text-white font-bold py-3 rounded-lg mt-4 transition shadow-lg flex items-center justify-center gap-2">
                         <i data-lucide="wallet"></i> Pilih Pembayaran
                     </button>
                 </div>
@@ -174,6 +149,7 @@
 
         <!-- TAB LAPORAN -->
         <div id="tab-laporan" class="hidden space-y-6">
+            <!-- Summary etc as before -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
                     <p class="text-[10px] text-gray-500 font-bold uppercase">Omzet Total</p>
@@ -216,7 +192,7 @@
         </div>
     </main>
 
-    <!-- MODALS -->
+    <!-- Modal sections (Pay, Variant, Receipt) remain the same -->
     <div id="modal-bayar" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-[55]">
         <div class="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl">
             <h3 class="text-xl font-bold mb-2 text-[#3e1f0a]">Pembayaran</h3>
@@ -233,7 +209,7 @@
             </div>
             <div id="input-tunai-container" class="hidden mb-6 space-y-3">
                 <label class="text-xs font-bold text-gray-500 uppercase">Uang Diterima (Tunai)</label>
-                <input type="number" id="uang-diterima" class="w-full text-xl font-bold border-b-2 border-[#8b4513] outline-none py-2 bg-transparent" placeholder="0" oninput="hitungKembalian()">
+                <input type="number" id="uang-diterima" class="w-full text-xl font-bold border-b-2 border-[#8b4513] outline-none py-2" placeholder="0" oninput="hitungKembalian()">
                 <div class="flex justify-between text-sm pt-2">
                     <span class="text-gray-500">Kembalian:</span>
                     <span id="text-kembalian" class="font-bold text-red-600">Rp 0</span>
@@ -284,43 +260,12 @@
         document.getElementById('config-url').value = scriptURL;
         document.getElementById('nama-petugas').value = localStorage.getItem('nama_petugas') || '';
 
-        // Toast Helper (Diperbarui: Muncul di tengah atas dengan transisi yang halus)
-        function showToast(msg, type = 'error') {
-            const toast = document.getElementById('toast');
-            const msgEl = document.getElementById('toast-msg');
-            
-            msgEl.innerText = msg;
-            
-            // Atur warna berdasarkan tipe
-            if(type === 'success') {
-                toast.classList.replace('bg-red-600', 'bg-green-600');
-            } else {
-                toast.classList.replace('bg-green-600', 'bg-red-600');
-            }
-
-            // Tampilkan (Hilangkan efek sembunyi)
-            toast.classList.remove('opacity-0', '-translate-y-10');
-            toast.classList.add('opacity-100', 'translate-y-0');
-
-            // Sembunyikan setelah 3 detik
-            setTimeout(() => {
-                toast.classList.replace('opacity-100', 'opacity-0');
-                toast.classList.replace('translate-y-0', '-translate-y-10');
-            }, 3000);
-        }
-
-        // Error Feedback Helper
-        function clearErrorPetugas() {
-            const wrapper = document.getElementById('wrapper-petugas');
-            wrapper.classList.remove('shake', 'border-red-400');
-            localStorage.setItem('nama_petugas', document.getElementById('nama-petugas').value);
-        }
-
         function toggleLoader(show, text = "Sinkronisasi Cloud...") { 
             document.getElementById('loader-text').innerText = text;
             document.getElementById('loader').style.display = show ? 'flex' : 'none'; 
         }
 
+        function savePetugas() { localStorage.setItem('nama_petugas', document.getElementById('nama-petugas').value); }
         function saveConfig() { 
             scriptURL = document.getElementById('config-url').value.trim(); 
             localStorage.setItem('google_script_url', scriptURL); 
@@ -345,12 +290,12 @@
             const search = document.getElementById('search-menu').value.toLowerCase();
             dbMenu.filter(m => m.nama.toLowerCase().includes(search)).forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'menu-card bg-white p-3 rounded-xl shadow-sm border border-[#f5e6d3] cursor-pointer hover:border-[#8b4513] transition';
+                div.className = 'menu-card bg-white p-3 rounded-xl shadow-sm border border-[#f5e6d3] cursor-pointer';
                 div.onclick = () => openVariantModal(item);
                 div.innerHTML = `
                     <img src="${item.foto || 'https://via.placeholder.com/150'}">
                     <h4 class="font-bold text-[#3e1f0a] text-sm truncate">${item.nama}</h4>
-                    <p class="text-[10px] text-gray-500">Mulai Rp ${item.variants['Reguler'].harga.toLocaleString('id-ID')}</p>
+                    <p class="text-[10px] text-gray-500">Rp ${item.variants['Reguler'].harga.toLocaleString('id-ID')}</p>
                 `;
                 grid.appendChild(div);
             });
@@ -406,27 +351,10 @@
             document.getElementById('cart-total').innerText = 'Rp ' + total.toLocaleString('id-ID');
         }
 
-        function handleCheckout() {
-            const namaPetugas = document.getElementById('nama-petugas');
-            const wrapperPetugas = document.getElementById('wrapper-petugas');
-
-            if (keranjang.length === 0) {
-                showToast("Pilih menu terlebih dahulu!");
-                return;
-            }
-
-            if (!namaPetugas.value.trim()) {
-                wrapperPetugas.classList.add('shake', 'border-red-400');
-                namaPetugas.focus();
-                showToast("Nama Kasir belum diisi!");
-                setTimeout(() => wrapperPetugas.classList.remove('shake'), 500);
-                return;
-            }
-
-            bukaModalPembayaran();
-        }
-
         function bukaModalPembayaran() {
+            if(keranjang.length === 0) return;
+            const petugas = document.getElementById('nama-petugas').value;
+            if(!petugas) return alert("Isi Nama Kasir terlebih dahulu!");
             totalBelanja = keranjang.reduce((a,b) => a + (b.harga*b.qty), 0);
             document.getElementById('bayar-total-text').innerText = 'Rp ' + totalBelanja.toLocaleString('id-ID');
             document.getElementById('modal-bayar').classList.remove('hidden');
@@ -520,6 +448,8 @@
                 trx.itemDetails.forEach(item => {
                     itemsHTML += `<div class="receipt-item"><div>${item.nama} (${item.varian})</div><div style="display:flex; justify-content:space-between; font-size:11px;"><span>${item.qty} x ${item.harga.toLocaleString()}</span><span>${(item.qty * item.harga).toLocaleString()}</span></div></div>`;
                 });
+            } else if (trx.rincian) {
+                itemsHTML = `<div class="receipt-item" style="font-size:11px;">${trx.rincian}</div>`;
             }
 
             document.getElementById('receipt-content').innerHTML = `
@@ -541,7 +471,7 @@
                 </div>
                 <div class="receipt-footer">
                     <p style="margin:2px 0; font-size:10px;">Terima kasih atas kunjungannya</p>
-                    <p style="margin:2px 0; font-size:10px; font-weight:bold">Follow IG @titikheningcoffee</p>
+                    <p style="margin:2px 0; font-size:10px;">Follow IG @titikheningcoffee</p>
                 </div>
             `;
             document.getElementById('modal-struk').classList.remove('hidden');
@@ -560,7 +490,7 @@
         }
 
         async function pullMenuFromCloud() {
-            if(!scriptURL) return showToast("URL Cloud belum diisi!");
+            if(!scriptURL) return alert("URL Cloud belum diisi!");
             toggleLoader(true, "Mengambil Menu...");
             try {
                 const res = await fetch(`${scriptURL}?action=getProducts`);
@@ -569,14 +499,14 @@
                     dbMenu = data;
                     localStorage.setItem('kasir_menu_cloud', JSON.stringify(dbMenu));
                     renderMenu(); renderAdminList();
-                    showToast("Menu berhasil ditarik!", 'success');
+                    alert("Menu berhasil ditarik.");
                 }
-            } catch(e) { showToast("Gagal tarik data."); }
+            } catch(e) { alert("Gagal tarik data."); }
             finally { toggleLoader(false); }
         }
 
         async function syncFromCloud() {
-            if (!scriptURL) return showToast("URL Cloud belum diisi!");
+            if (!scriptURL) return alert("URL Cloud belum diisi!");
             toggleLoader(true, "Sinkronisasi Transaksi...");
             try {
                 const res = await fetch(`${scriptURL}?action=getTransactions`);
@@ -588,9 +518,9 @@
                     })).sort((a,b) => new Date(b.waktu) - new Date(a.waktu));
                     localStorage.setItem('kasir_transaksi_cloud', JSON.stringify(riwayatTransaksi));
                     renderLaporan();
-                    showToast("Laporan sinkron!", 'success');
+                    alert("Laporan sinkron.");
                 }
-            } catch(e) { showToast("Gagal sinkron laporan."); }
+            } catch(e) { alert("Gagal sinkron."); }
             finally { toggleLoader(false); }
         }
 
@@ -609,13 +539,14 @@
             const idx = dbMenu.findIndex(m => m.id == id);
             if(idx > -1) dbMenu[idx] = newItem; else dbMenu.push(newItem);
             
+            // Simpan Lokal
             localStorage.setItem('kasir_menu_cloud', JSON.stringify(dbMenu));
             
+            // OTOMATIS PUSH KE CLOUD
             if (scriptURL) {
                 await pushMenuToCloud();
-                showToast("Menu di-update!", 'success');
             } else {
-                showToast("Simpan lokal (Offline).", 'success');
+                alert("Produk disimpan secara lokal (Cloud belum terhubung).");
             }
 
             resetMenuForm(); 
@@ -661,7 +592,6 @@
                 if (scriptURL) await pushMenuToCloud();
                 renderMenu(); 
                 renderAdminList(); 
-                showToast("Produk dihapus.", 'success');
             } 
         }
 
@@ -673,7 +603,8 @@
             riwayatTransaksi.forEach(t => {
                 o+=t.omzet; m+=t.modal; l+=t.laba;
                 const methodIcon = t.metode === 'QRIS' ? '<span class="flex items-center gap-1 text-blue-600 font-bold"><i data-lucide="qr-code" class="w-3 h-3"></i> QRIS</span>' : '<span class="flex items-center gap-1 text-green-600 font-bold"><i data-lucide="banknote" class="w-3 h-3"></i> Tunai</span>';
-                body.innerHTML += `<tr class="border-b text-[10px]"><td class="p-3 font-mono text-gray-500">#${String(t.id).slice(-6)}</td><td class="p-3">${new Date(t.waktu).toLocaleDateString()}</td><td class="p-3 uppercase">${t.petugas || '-'}</td><td class="p-3">${methodIcon}</td><td class="p-3 font-bold">Rp ${Number(t.omzet).toLocaleString()}</td><td class="p-3 text-center"><button onclick='showReceipt(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="bg-[#fdfaf7] border border-[#d2b48c] px-3 py-1 rounded text-[#8b4513]">Struk</button></td></tr>`;
+                const itemPreview = t.itemDetails && Array.isArray(t.itemDetails) ? t.itemDetails.map(i => `${i.nama} x${i.qty}`).join(', ') : (t.rincian || '-');
+                body.innerHTML += `<tr class="border-b text-[10px]"><td class="p-3 font-mono text-gray-500">#${String(t.id).slice(-6)}</td><td class="p-3">${new Date(t.waktu).toLocaleDateString()}</td><td class="p-3">${t.petugas || 'Kasir'}</td><td class="p-3">${methodIcon}</td><td class="p-3 font-bold">Rp ${Number(t.omzet).toLocaleString()}</td><td class="p-3 text-center"><button onclick='showReceipt(${JSON.stringify(t).replace(/'/g, "&apos;")})' class="bg-[#fdfaf7] border border-[#d2b48c] px-3 py-1 rounded text-[#8b4513]">Struk</button></td></tr>`;
             });
             document.getElementById('summary-omzet').innerText = 'Rp '+o.toLocaleString();
             document.getElementById('summary-modal').innerText = 'Rp '+m.toLocaleString();
@@ -689,7 +620,7 @@
         }
 
         function exportToExcel() {
-            if(riwayatTransaksi.length === 0) return showToast("Data kosong!");
+            if(riwayatTransaksi.length === 0) return alert("Tidak ada data untuk diekspor!");
             const worksheet = XLSX.utils.json_to_sheet(riwayatTransaksi);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
