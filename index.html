@@ -275,9 +275,6 @@
         let scriptURL = localStorage.getItem('google_script_url') || "https://script.google.com/macros/s/AKfycbyHycPDYKotLWDNJoZO441hUkAUkT-f1QuwTmJtq9e9gSS9RZLOty0M4HUFZCFApVPN/exec";
         // Default menu if cloud is empty/offline
         let dbMenu = JSON.parse(localStorage.getItem('kasir_menu_cloud')) || [
-            {id: 1, nama: "Kopi Susu Hening", foto: "", variants: {'Reguler': {harga: 18000, hpp: 9000}, '1 Liter': {harga: 85000, hpp: 45000}}},
-            {id: 2, nama: "Americano", foto: "", variants: {'Reguler': {harga: 15000, hpp: 5000}, '1 Liter': {harga: 70000, hpp: 30000}}},
-            {id: 3, nama: "Latte Senja", foto: "", variants: {'Reguler': {harga: 22000, hpp: 11000}, '1 Liter': {harga: 95000, hpp: 50000}}}
         ];
         
         let riwayatTransaksi = JSON.parse(localStorage.getItem('kasir_transaksi_cloud')) || [];
@@ -922,3 +919,4 @@
     </script>
 </body>
 </html>
+
