@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Kasir Pro - Google Sheets Cloud</title>
+    <title>Sistem Kasir Pro - Universal Print</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -68,9 +68,13 @@
             <div id="status-cloud" class="flex-1 text-center text-xs font-bold text-gray-500 bg-gray-100 py-2 rounded border border-gray-200">
                 Status: Standalone Mode
             </div>
-            <div class="flex items-center gap-2 bg-white px-3 py-1 rounded border border-[#d2b48c] shadow-sm">
+            <!-- Indikator Direct Bluetooth -->
+            <div id="status-bluetooth" class="hidden flex-1 text-center text-xs font-bold text-blue-600 bg-blue-50 py-2 rounded border border-blue-200">
+                Direct BT: <span id="bt-device-name">-</span>
+            </div>
+            <div class="flex items-center gap-2 bg-white px-3 py-1 rounded border border-[#d2b48c] shadow-sm transition-all duration-300" id="container-petugas">
                 <i data-lucide="user" class="w-4 h-4 text-[#8b4513]"></i>
-                <input type="text" id="nama-petugas" placeholder="Nama Kasir" class="text-xs font-bold outline-none text-[#3e1f0a] w-32" onchange="savePetugas()">
+                <input type="text" id="nama-petugas" placeholder="Nama Kasir" class="text-xs font-bold outline-none text-[#3e1f0a] w-32 bg-transparent" onchange="savePetugas()">
             </div>
         </div>
 
@@ -149,7 +153,6 @@
 
         <!-- TAB LAPORAN -->
         <div id="tab-laporan" class="hidden space-y-6">
-            <!-- Summary etc as before -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
                     <p class="text-[10px] text-gray-500 font-bold uppercase">Omzet Total</p>
@@ -192,7 +195,7 @@
         </div>
     </main>
 
-    <!-- Modal sections (Pay, Variant, Receipt) remain the same -->
+    <!-- Modal sections -->
     <div id="modal-bayar" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-[55]">
         <div class="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl">
             <h3 class="text-xl font-bold mb-2 text-[#3e1f0a]">Pembayaran</h3>
@@ -237,29 +240,61 @@
         </div>
     </div>
 
+    <!-- MODAL STRUK UNIVERSAL -->
     <div id="modal-struk" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-[60]">
         <div class="bg-white p-4 rounded-xl max-w-fit flex flex-col items-center">
             <div id="receipt-modal-content"><div id="receipt-content"></div></div>
-            <div class="flex gap-2 mt-6 no-print-receipt">
-                <button onclick="downloadReceipt()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Simpan PNG</button>
-                <button onclick="window.print()" class="bg-[#8b4513] text-white px-4 py-2 rounded-lg font-bold text-sm">Cetak Struk</button>
-                <button onclick="closeReceiptModal()" class="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold text-sm">Tutup</button>
+            
+            <div class="w-full mt-6 no-print-receipt bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <label class="text-xs font-bold text-gray-500 block mb-2">METODE CETAK:</label>
+                <select id="print-method" onchange="updatePrintButton()" class="w-full mb-3 p-2 text-sm border border-gray-300 rounded bg-white">
+                    <option value="system">🖥️ System / Driver (WiFi/USB)</option>
+                    <option value="rawbt">📱 RawBT App (Android Thermal WiFi/BT)</option>
+                    <option value="direct_bt">🔵 Direct Web Bluetooth (Chrome)</option>
+                </select>
+
+                <!-- Tombol Action untuk Direct Bluetooth (Hanya muncul jika mode ini dipilih) -->
+                <button id="btn-connect-bt" onclick="connectWebBluetooth()" class="hidden w-full mb-3 bg-blue-100 text-blue-700 px-3 py-2 rounded text-xs font-bold border border-blue-300 hover:bg-blue-200">
+                    🔗 Hubungkan Printer Bluetooth
+                </button>
+
+                <div class="flex flex-col gap-2">
+                    <button onclick="eksekusiCetak()" class="bg-[#8b4513] hover:bg-[#5d2e0d] text-white px-4 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-md transition">
+                        <i data-lucide="printer"></i> <span id="btn-print-label">Cetak Struk</span>
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="downloadReceipt()" class="flex-1 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg font-bold text-xs">Simpan PNG</button>
+                        <button onclick="closeReceiptModal()" class="flex-1 bg-gray-200 text-gray-600 px-3 py-2 rounded-lg font-bold text-xs">Tutup</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         let scriptURL = localStorage.getItem('google_script_url') || "https://script.google.com/macros/s/AKfycbyHycPDYKotLWDNJoZO441hUkAUkT-f1QuwTmJtq9e9gSS9RZLOty0M4HUFZCFApVPN/exec";
-        let dbMenu = JSON.parse(localStorage.getItem('kasir_menu_cloud')) || [];
+        // Default menu if cloud is empty/offline
+        let dbMenu = JSON.parse(localStorage.getItem('kasir_menu_cloud')) || [
+            {id: 1, nama: "Kopi Susu Hening", foto: "", variants: {'Reguler': {harga: 18000, hpp: 9000}, '1 Liter': {harga: 85000, hpp: 45000}}},
+            {id: 2, nama: "Americano", foto: "", variants: {'Reguler': {harga: 15000, hpp: 5000}, '1 Liter': {harga: 70000, hpp: 30000}}},
+            {id: 3, nama: "Latte Senja", foto: "", variants: {'Reguler': {harga: 22000, hpp: 11000}, '1 Liter': {harga: 95000, hpp: 50000}}}
+        ];
+        
         let riwayatTransaksi = JSON.parse(localStorage.getItem('kasir_transaksi_cloud')) || [];
         let keranjang = [];
         let activeProductForModal = null;
         let metodeTerpilih = "";
         let totalBelanja = 0;
+        let currentTrxForPrint = null;
+
+        // Web Bluetooth State
+        let btDevice = null;
+        let btCharacteristic = null;
 
         document.getElementById('config-url').value = scriptURL;
         document.getElementById('nama-petugas').value = localStorage.getItem('nama_petugas') || '';
 
+        // --- CORE FUNCTIONS ---
         function toggleLoader(show, text = "Sinkronisasi Cloud...") { 
             document.getElementById('loader-text').innerText = text;
             document.getElementById('loader').style.display = show ? 'flex' : 'none'; 
@@ -283,17 +318,233 @@
             }
         }
 
+        // --- PRINTING LOGIC (UNIVERSAL) ---
+        
+        function updatePrintButton() {
+            const mode = document.getElementById('print-method').value;
+            const btnConnect = document.getElementById('btn-connect-bt');
+            const btnLabel = document.getElementById('btn-print-label');
+            
+            if (mode === 'direct_bt') {
+                btnConnect.classList.remove('hidden');
+                btnLabel.innerText = "Kirim ke Bluetooth";
+            } else if (mode === 'rawbt') {
+                btnConnect.classList.add('hidden');
+                btnLabel.innerText = "Buka RawBT (Android)";
+            } else {
+                btnConnect.classList.add('hidden');
+                btnLabel.innerText = "Print System Dialog";
+            }
+        }
+
+        async function eksekusiCetak() {
+            if (!currentTrxForPrint) return alert("Tidak ada data transaksi!");
+            const mode = document.getElementById('print-method').value;
+
+            if (mode === 'system') {
+                // Metode 1: Browser Print (WiFi/USB Driver)
+                window.print();
+            } 
+            else if (mode === 'rawbt') {
+                // Metode 2: RawBT App Scheme (WiFi/BT Thermal di Android)
+                cetakViaRawBT(currentTrxForPrint);
+            } 
+            else if (mode === 'direct_bt') {
+                // Metode 3: Direct Web Bluetooth
+                if (!btCharacteristic) {
+                    alert("Silakan klik 'Hubungkan Printer Bluetooth' terlebih dahulu!");
+                } else {
+                    await cetakViaDirectBT(currentTrxForPrint);
+                }
+            }
+        }
+
+        // Helper: Generate ESC/POS Data String
+        function generateEscPosString(trx) {
+            const ESC = "\x1b";
+            const GS = "\x1d";
+            const INIT = ESC + "@"; 
+            const CENTER = ESC + "a" + "\x01"; 
+            const LEFT = ESC + "a" + "\x00"; 
+            const BOLD_ON = ESC + "E" + "\x01"; 
+            const BOLD_OFF = ESC + "E" + "\x00"; 
+
+            let p = INIT;
+            p += CENTER + BOLD_ON + "TITIK HENING\n" + BOLD_OFF;
+            p += "Hanya ada Anda, Kopi, dan Jeda\n";
+            p += "--------------------------------\n" + LEFT;
+            p += `ID: ${trx.id.slice(-6)}   ${new Date(trx.waktu).toLocaleTimeString('id-ID')}\n`;
+            p += `Kasir: ${trx.petugas || 'Kasir'}\n`;
+            p += "--------------------------------\n";
+
+            if (trx.itemDetails && Array.isArray(trx.itemDetails)) {
+                trx.itemDetails.forEach(item => {
+                    p += `${item.nama} (${item.varian})\n`;
+                    // PERUBAHAN: Menambahkan '@' untuk harga satuan
+                    let leftPart = `${item.qty} x @${item.harga.toLocaleString('id-ID')}`;
+                    let rightPart = (item.qty * item.harga).toLocaleString('id-ID');
+                    let space = 32 - leftPart.length - rightPart.length;
+                    if(space < 1) space = 1;
+                    p += leftPart + " ".repeat(space) + rightPart + "\n";
+                });
+            } else {
+                 p += (trx.rincian || "Item tidak terdata") + "\n";
+            }
+
+            p += "--------------------------------\n";
+            let totalStr = `Rp ${trx.omzet.toLocaleString('id-ID')}`;
+            let totalLabel = "TOTAL";
+            let spaceTotal = 32 - totalLabel.length - totalStr.length;
+            p += BOLD_ON + totalLabel + " ".repeat(spaceTotal > 0 ? spaceTotal : 1) + totalStr + "\n" + BOLD_OFF;
+
+            p += `Metode: ${trx.metode}\n`;
+            if(trx.metode === 'Cash') {
+                p += `Bayar: Rp ${(trx.diterima || 0).toLocaleString('id-ID')}\n`;
+                p += `Kembali: Rp ${(trx.kembalian || 0).toLocaleString('id-ID')}\n`;
+            }
+
+            p += "\n" + CENTER + "Terima Kasih\n";
+            p += "Follow IG @titikheningcoffee\n\n\n"; 
+            return p;
+        }
+
+        // --- Logic Metode 2: RawBT ---
+        function cetakViaRawBT(trx) {
+            const data = generateEscPosString(trx);
+            try {
+                const base64 = btoa(data);
+                // Scheme RawBT: rawbt:base64,data
+                window.location.href = 'rawbt:base64,' + base64;
+            } catch (e) {
+                alert("Gagal encode data. Pastikan tidak ada karakter aneh.");
+            }
+        }
+
+        // --- Logic Metode 3: Direct Web Bluetooth (UPDATED & FIXED) ---
+        async function connectWebBluetooth() {
+            // Cek kompatibilitas browser
+            if (!navigator.bluetooth) {
+                return alert("Browser ini tidak mendukung Web Bluetooth.\n\nTips:\n1. Gunakan Google Chrome (Android/Windows/Mac).\n2. Pastikan website menggunakan HTTPS (bukan http).\n3. Pastikan Bluetooth & Lokasi (GPS) aktif.");
+            }
+            
+            try {
+                toggleLoader(true, "Mencari Printer Bluetooth...");
+                
+                // Daftar UUID Service yang valid
+                const printerServices = [
+                    '000018f0-0000-1000-8000-00805f9b34fb', // Standard (0x18f0)
+                    'e7810a71-73ae-499d-8c15-faa9aef71d77', // MPT-II / China (Fixed UUID)
+                    '0000ff00-0000-1000-8000-00805f9b34fb', // Generic (0xff00)
+                    '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Feasycom
+                    '0000ae00-0000-1000-8000-00805f9b34fb', // Custom (0xae00)
+                    '0000af00-0000-1000-8000-00805f9b34fb'  // Custom (0xaf00)
+                ];
+
+                // Request Device dengan acceptAllDevices (untuk scan luas) + optionalServices
+                btDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true, 
+                    optionalServices: printerServices
+                });
+
+                // Listener jika koneksi putus
+                btDevice.addEventListener('gattserverdisconnected', () => {
+                    document.getElementById('status-bluetooth').classList.add('hidden');
+                    btCharacteristic = null;
+                    document.getElementById('bt-device-name').innerText = "-";
+                    alert("Koneksi Printer Terputus!");
+                });
+
+                // Connect ke GATT Server
+                const server = await btDevice.gatt.connect();
+                
+                // Cari Characteristic untuk Write
+                // Kita loop semua service yang ditemukan, lalu loop characteristic-nya
+                const services = await server.getPrimaryServices();
+                let found = false;
+
+                for (const service of services) {
+                    try {
+                        const chars = await service.getCharacteristics();
+                        // Prioritas: WriteWithoutResponse (lebih cepat), lalu Write biasa
+                        let candidate = chars.find(c => c.properties.writeWithoutResponse);
+                        if (!candidate) candidate = chars.find(c => c.properties.write);
+                        
+                        if (candidate) {
+                            btCharacteristic = candidate;
+                            found = true;
+                            break; // Ketemu satu yang bisa ditulis, cukup.
+                        }
+                    } catch (err) {
+                        console.warn("Service terkunci/restricted:", err);
+                    }
+                }
+
+                if (found) {
+                    document.getElementById('status-bluetooth').classList.remove('hidden');
+                    document.getElementById('bt-device-name').innerText = btDevice.name;
+                    alert(`Berhasil terhubung ke ${btDevice.name}!\nSiap mencetak.`);
+                } else {
+                    throw new Error("Printer terhubung, tapi tidak ditemukan akses tulis (Write Characteristic).");
+                }
+
+            } catch (e) {
+                // Filter error jika user membatalkan (cancel) agar tidak popup alert
+                if (e.name !== 'NotFoundError') {
+                    alert("Gagal koneksi: " + e.message);
+                }
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+        async function cetakViaDirectBT(trx) {
+            if (!btCharacteristic) return alert("Printer belum terhubung!");
+            
+            try {
+                toggleLoader(true, "Mengirim Data...");
+                const text = generateEscPosString(trx);
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                
+                // Kirim data dalam potongan (chunk) kecil (100 bytes) 
+                // untuk menghindari buffer overflow pada printer murah
+                const chunkSize = 100;
+                for (let i = 0; i < data.length; i += chunkSize) {
+                    await btCharacteristic.writeValue(data.slice(i, i + chunkSize));
+                    // Delay kecil sangat penting untuk stabilitas
+                    await new Promise(r => setTimeout(r, 40)); 
+                }
+            } catch (e) {
+                alert("Gagal mencetak: " + e.message + "\nCoba hubungkan ulang printer.");
+                // Reset koneksi jika error fatal
+                if(btDevice && btDevice.gatt.connected) btDevice.gatt.disconnect();
+            } finally {
+                toggleLoader(false);
+            }
+        }
+        
+        // --- END PRINTING LOGIC ---
+
         function renderMenu() {
             const grid = document.getElementById('menu-grid');
             if(!grid) return;
             grid.innerHTML = '';
             const search = document.getElementById('search-menu').value.toLowerCase();
+            
+            // Fallback if dbMenu is empty (first load without cloud)
+            if(!dbMenu || dbMenu.length === 0) {
+                dbMenu = [];
+            }
+
             dbMenu.filter(m => m.nama.toLowerCase().includes(search)).forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'menu-card bg-white p-3 rounded-xl shadow-sm border border-[#f5e6d3] cursor-pointer';
                 div.onclick = () => openVariantModal(item);
+                // Fallback image handling
+                const imgUrl = item.foto || 'https://via.placeholder.com/150/d2b48c/FFFFFF?text=Coffee';
+                
                 div.innerHTML = `
-                    <img src="${item.foto || 'https://via.placeholder.com/150'}">
+                    <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/150/d2b48c/FFFFFF?text=No+Image'">
                     <h4 class="font-bold text-[#3e1f0a] text-sm truncate">${item.nama}</h4>
                     <p class="text-[10px] text-gray-500">Rp ${item.variants['Reguler'].harga.toLocaleString('id-ID')}</p>
                 `;
@@ -338,7 +589,7 @@
                     <div class="flex justify-between items-center bg-[#fdfaf7] p-2 rounded border border-[#f5e6d3] text-xs">
                         <div class="flex-1">
                             <p class="font-bold text-[#3e1f0a]">${item.nama} (${item.varian})</p>
-                            <p class="text-[10px] text-gray-400">${item.qty} x Rp ${item.harga.toLocaleString()}</p>
+                            <p class="text-[10px] text-gray-400">${item.qty} x Rp ${item.harga.toLocaleString('id-ID')}</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="changeQty(${i},-1)" class="w-6 h-6 border rounded bg-white">-</button>
@@ -353,8 +604,27 @@
 
         function bukaModalPembayaran() {
             if(keranjang.length === 0) return;
-            const petugas = document.getElementById('nama-petugas').value;
-            if(!petugas) return alert("Isi Nama Kasir terlebih dahulu!");
+            
+            // VALIDASI NAMA KASIR (BARU)
+            const inputPetugas = document.getElementById('nama-petugas');
+            const containerPetugas = document.getElementById('container-petugas');
+            const petugas = inputPetugas.value.trim();
+            
+            if(!petugas) {
+                alert("⚠️ PERHATIAN: Nama Kasir Belum Diisi!\n\nMohon isi nama Anda di kolom 'Nama Kasir' (pojok kanan atas) sebelum memproses pembayaran.");
+                inputPetugas.focus();
+                
+                // Tambahkan efek visual (Highlight Merah)
+                containerPetugas.classList.add('ring-4', 'ring-red-500', 'bg-red-50');
+                
+                // Hapus efek setelah 3 detik
+                setTimeout(() => {
+                    containerPetugas.classList.remove('ring-4', 'ring-red-500', 'bg-red-50');
+                }, 3000);
+                
+                return;
+            }
+
             totalBelanja = keranjang.reduce((a,b) => a + (b.harga*b.qty), 0);
             document.getElementById('bayar-total-text').innerText = 'Rp ' + totalBelanja.toLocaleString('id-ID');
             document.getElementById('modal-bayar').classList.remove('hidden');
@@ -432,7 +702,9 @@
                         method: 'POST', mode: 'no-cors', 
                         body: JSON.stringify({ action: 'addTransaction', ...trx }) 
                     });
-                } catch(e) {}
+                } catch(e) {
+                    console.log("Offline mode or CORS error: " + e);
+                }
                 finally { setTimeout(() => toggleLoader(false), 500); }
             }
             
@@ -442,11 +714,13 @@
         }
 
         function showReceipt(trx) {
+            currentTrxForPrint = trx; // Save for printing
             const date = new Date(trx.waktu);
             let itemsHTML = '';
             if (trx.itemDetails && Array.isArray(trx.itemDetails)) {
                 trx.itemDetails.forEach(item => {
-                    itemsHTML += `<div class="receipt-item"><div>${item.nama} (${item.varian})</div><div style="display:flex; justify-content:space-between; font-size:11px;"><span>${item.qty} x ${item.harga.toLocaleString()}</span><span>${(item.qty * item.harga).toLocaleString()}</span></div></div>`;
+                    // PERUBAHAN: Menambahkan 'x @' dan 'Rp' untuk kejelasan harga satuan
+                    itemsHTML += `<div class="receipt-item"><div>${item.nama} (${item.varian})</div><div style="display:flex; justify-content:space-between; font-size:11px;"><span>${item.qty} x @Rp ${item.harga.toLocaleString('id-ID')}</span><span>${(item.qty * item.harga).toLocaleString('id-ID')}</span></div></div>`;
                 });
             } else if (trx.rincian) {
                 itemsHTML = `<div class="receipt-item" style="font-size:11px;">${trx.rincian}</div>`;
@@ -464,10 +738,10 @@
                 <hr class="receipt-divider">
                 ${itemsHTML}
                 <hr class="receipt-divider">
-                <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>TOTAL</span><span>Rp ${trx.omzet.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>TOTAL</span><span>Rp ${trx.omzet.toLocaleString('id-ID')}</span></div>
                 <div style="font-size:11px; margin-top:5px;">
                     <div style="display:flex; justify-content:space-between;"><span>Metode:</span><span>${trx.metode || 'Cash'}</span></div>
-                    ${trx.metode === 'Cash' ? `<div style="display:flex; justify-content:space-between;"><span>Bayar:</span><span>Rp ${(trx.diterima || trx.omzet).toLocaleString()}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>Rp ${(trx.kembalian || 0).toLocaleString()}</span></div>` : ''}
+                    ${trx.metode === 'Cash' ? `<div style="display:flex; justify-content:space-between;"><span>Bayar:</span><span>Rp ${(trx.diterima || trx.omzet).toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>Rp ${(trx.kembalian || 0).toLocaleString('id-ID')}</span></div>` : ''}
                 </div>
                 <div class="receipt-footer">
                     <p style="margin:2px 0; font-size:10px;">Terima kasih atas kunjungannya</p>
@@ -475,6 +749,7 @@
                 </div>
             `;
             document.getElementById('modal-struk').classList.remove('hidden');
+            updatePrintButton(); // Init button state
         }
 
         async function pushMenuToCloud() {
@@ -501,7 +776,9 @@
                     renderMenu(); renderAdminList();
                     alert("Menu berhasil ditarik.");
                 }
-            } catch(e) { alert("Gagal tarik data."); }
+            } catch(e) { 
+                alert("Gagal tarik data (Pastikan URL Script benar dan di-deploy sebagai Web App dengan akses 'Anyone')."); 
+            }
             finally { toggleLoader(false); }
         }
 
@@ -633,7 +910,15 @@
                 const link = document.createElement('a'); link.download = `Receipt_${Date.now()}.png`; link.href = canvas.toDataURL("image/png"); link.click();
             });
         }
-        window.onload = () => { renderMenu(); renderAdminList(); updateStatus(); if (window.lucide) lucide.createIcons(); };
+        
+        window.onload = () => { 
+            // Tambahkan data dummy jika kosong agar UI terlihat
+            if(dbMenu.length === 0) renderMenu(); 
+            renderMenu(); 
+            renderAdminList(); 
+            updateStatus(); 
+            if (window.lucide) lucide.createIcons(); 
+        };
     </script>
 </body>
 </html>
